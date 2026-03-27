@@ -6,14 +6,13 @@ from ultralytics import YOLO
 
 CONF_THRESHOLD = 0.25
 
-# сколько времени человек может "пропасть", но стол все еще считаем занятым
+
 EMPTY_TIMEOUT = 2.0
 
-# минимальная длительность состояния (анти-дребезг)
 MIN_EVENT_GAP = 1.0
 
 
-# ---------------- ROI CHECK ---------------- #
+# ROI CHECK  #
 def foot_point_in_roi(box, roi):
     x1, y1, x2, y2 = box
     tx, ty, tw, th = roi
@@ -27,7 +26,7 @@ def foot_point_in_roi(box, roi):
             ty - margin < foot_y < ty + th + margin)
 
 
-# ---------------- DETECTION ---------------- #
+# DETECTION #
 def detect_people(model, frame, roi):
     results = model(frame, classes=[0], verbose=False)[0]
 
@@ -40,10 +39,8 @@ def detect_people(model, frame, roi):
 
         x1, y1, x2, y2 = map(int, box.xyxy[0])
 
-        # bbox
         cv2.rectangle(frame, (x1, y1), (x2, y2), (255, 0, 0), 2)
 
-        # foot point
         foot_x = (x1 + x2) // 2
         foot_y = y2
         cv2.circle(frame, (foot_x, foot_y), 5, (0, 255, 255), -1)
@@ -54,7 +51,7 @@ def detect_people(model, frame, roi):
     return person_in_zone
 
 
-# ---------------- STATE MACHINE ---------------- #
+    # STATE MACHINE #
 class StateMachine:
     def __init__(self):
         self.is_occupied = False
@@ -63,11 +60,11 @@ class StateMachine:
         self.events = []
 
     def update(self, person_in_zone, current_time):
-        # обновляем время последнего обнаружения человека
+        # обновление времени последнего обнаружения человека
         if person_in_zone:
             self.last_seen_person_time = current_time
 
-        # определяем состояние через время
+        # определение состояния через время
         time_since_seen = current_time - self.last_seen_person_time
 
         if time_since_seen < EMPTY_TIMEOUT:
@@ -75,11 +72,11 @@ class StateMachine:
         else:
             new_state = False
 
-        # если состояние не изменилось — ничего не делаем
+        
         if new_state == self.is_occupied:
             return
 
-        # анти-дребезг (защита от быстрых переключений)
+        
         if current_time - self.last_event_time < MIN_EVENT_GAP:
             return
 
@@ -87,7 +84,7 @@ class StateMachine:
         self.is_occupied = new_state
         self.last_event_time = current_time
 
-        # фиксируем события
+        # фиксация события
         if not prev and self.is_occupied:
             event = "approach"
         elif prev and not self.is_occupied:
@@ -103,7 +100,7 @@ class StateMachine:
         print(f"[{current_time:.2f}] EVENT: {event}")
 
 
-# ---------------- METRICS ---------------- #
+# METRICS #
 def compute_metrics(events):
     df = pd.DataFrame(events)
 
@@ -115,14 +112,13 @@ def compute_metrics(events):
 
     if delays:
         avg = sum(delays) / len(delays)
-        print(f"\n✅ Avg delay: {avg:.2f} sec")
+        print(f"\n Avg delay: {avg:.2f} sec")
     else:
-        print("\n⚠️ Недостаточно данных")
+        print("\n Недостаточно данных")
 
     return df
 
 
-# ---------------- MAIN ---------------- #
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument('--video', required=True)
@@ -137,7 +133,6 @@ def main():
 
     fps = cap.get(cv2.CAP_PROP_FPS)
     if fps < 10 or fps > 60:
-        print("⚠️ FPS некорректный, используем 25")
         fps = 25
 
     ret, first_frame = cap.read()
@@ -147,7 +142,6 @@ def main():
 
     h, w = first_frame.shape[:2]
 
-    # выбор ROI
     cv2.namedWindow("Select Table", cv2.WINDOW_NORMAL)
     cv2.resizeWindow("Select Table", 1280, 720)
 
@@ -178,7 +172,6 @@ def main():
         person_in_zone = detect_people(model, frame, roi)
         sm.update(person_in_zone, time_sec)
 
-        # визуализация
         color = (0, 0, 255) if sm.is_occupied else (0, 255, 0)
         label = "OCCUPIED" if sm.is_occupied else "FREE"
 
