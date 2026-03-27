@@ -68,7 +68,7 @@ empty → approach
 Среднее время:
 
 ```text
-Avg delay: 9.74 sec
+Avg delay: 10.29 sec
 ```
 проблемный кадр:
 ![img.png](img.png)
